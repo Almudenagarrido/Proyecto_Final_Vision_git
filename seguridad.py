@@ -1,5 +1,6 @@
 import cv2
 import time
+from picamera2 import Picamera2
 
 # Definir la secuencia esperada para la contraseña
 expected_sequence = ["circle", "line", "square", "triangle"]
@@ -7,7 +8,7 @@ expected_sequence = ["circle", "line", "square", "triangle"]
 # Inicializar la memoria de los patrones detectados
 detected_sequence = []
 last_detection_time = 0  # Almacena el último tiempo de detección de forma
-detection_delay = 5  # Intervalo en segundos entre detecciones
+detection_delay = 1  # Intervalo en segundos entre detecciones
 checking_sequence = False  # Bandera para indicar si se está comprobando la secuencia
 
 def detect_shapes(frame):
@@ -49,7 +50,7 @@ def detect_shapes(frame):
             (x, y, w, h) = cv2.boundingRect(approx)
             if 0.9 <= w / float(h) <= 1.1:
                 shapes.append(("square", contour, (255, 0, 0)))  # Azul
-        elif len(approx) >= 8:
+        elif len(approx) >= 50:
             shapes.append(("circle", contour, (0, 0, 255)))  # Rojo
     return shapes
 
@@ -73,48 +74,55 @@ def update_sequence(shapes):
         return "Checking Sequence..."
     return f"Shapes detected: {len(detected_sequence)}/4"
 
-# Captura en tiempo real desde la cámara
-cap = cv2.VideoCapture(0)
-print("Detecting shapes in real-time. Press 'q' to quit.")
+def stream_video():
+    """Captura de video en tiempo real con Picamera2."""
+    # Configurar Picamera2
+    picam = Picamera2()
+    picam.preview_configuration.main.size = (1280, 720)
+    picam.preview_configuration.main.format = "RGB888"
+    picam.preview_configuration.align()
+    picam.configure("preview")
+    picam.start()
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+    print("Detecting shapes in real-time. Press 'q' to quit.")
 
-    # Detectar formas geométricas en el frame
-    shapes = detect_shapes(frame)
+    while True:
+        # Capturar frame
+        frame = picam.capture_array()
 
-    # Dibujar contornos y nombres en el frame
-    for shape, contour, color in shapes:
-        cv2.drawContours(frame, [contour], -1, color, 2)
-        x, y, _, _ = cv2.boundingRect(contour)
-        cv2.putText(frame, shape, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+        # Detectar formas geométricas en el frame
+        shapes = detect_shapes(frame)
 
-    if checking_sequence:
-        # Comprobar la secuencia detectada
-        if detected_sequence == expected_sequence:
-            cv2.putText(frame, "Sequence Correct!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            print("Sequence Correct!")
-            break 
-        
+        # Dibujar contornos y nombres en el frame
+        for shape, contour, color in shapes:
+            cv2.drawContours(frame, [contour], -1, color, 2)
+            x, y, _, _ = cv2.boundingRect(contour)
+            cv2.putText(frame, shape, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+        if checking_sequence:
+            # Comprobar la secuencia detectada
+            if detected_sequence == expected_sequence:
+                cv2.putText(frame, "Sequence Correct!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                print("Sequence Correct!")
+            else:
+                cv2.putText(frame, "Access Denied! Try Again", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                print("Access Denied!")
+            detected_sequence.clear()
+            checking_sequence = False  # Resetear la comprobación
         else:
-            cv2.putText(frame, "Access Denied! Try Again", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            print("Access Denied! Try again!")
-        detected_sequence.clear()
-        checking_sequence = False  # Resetear la comprobación
-    else:
-        # Actualizar y validar la secuencia
-        result = update_sequence(shapes)
-        cv2.putText(frame, result, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+            # Actualizar y validar la secuencia
+            result = update_sequence(shapes)
+            cv2.putText(frame, result, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
 
-    # Mostrar el video en tiempo real
-    cv2.imshow("Shape Detection", frame)
+        # Mostrar el video en tiempo real
+        cv2.imshow("Shape Detection", frame)
 
-    # Salir con la tecla 'q'
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord('q'):  # Salir con 'q'
-        break
+        # Salir con la tecla 'q'
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):  # Salir con 'q'
+            break
 
-cap.release()
-cv2.destroyAllWindows()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    stream_video()
