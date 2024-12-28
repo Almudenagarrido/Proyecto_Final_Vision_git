@@ -2,13 +2,13 @@ import cv2
 import time
 from picamera2 import Picamera2
 
-# Variables globales
 expected_sequence = ["circle", "line", "square", "triangle"]
-detected_sequence = []  # Lista para almacenar la secuencia detectada
-last_detection_time = 0  # Última detección
-detection_delay = 5  # Intervalo entre detecciones (en segundos)
-checking_sequence = False  # Bandera para indicar si se está comprobando la secuencia
 
+# Inicializar la memoria de los patrones detectados
+detected_sequence = []
+last_detection_time = 0  # Almacena el último tiempo de detección de forma
+detection_delay = 1  # Intervalo en segundos entre detecciones
+checking_sequence = False  # Bandera para indicar si se está comprobando la secuencia
 
 def detect_shapes(frame):
     """Detectar y clasificar las formas geométricas más cercanas al centro."""
@@ -16,11 +16,11 @@ def detect_shapes(frame):
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     edges = cv2.Canny(blurred, 50, 150)
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+    
     # Filtrar contornos por tamaño y posición
-    min_area = 500  # Área mínima inicial
+    min_area = 1000  # Área mínima inicial
     frame_center = (frame.shape[1] // 2, frame.shape[0] // 2)  # Centro del frame
-    max_distance = frame.shape[0] // 3  # Distancia máxima desde el centro
+    max_distance = frame.shape[0] // 4  # Distancia máxima desde el centro
 
     shapes = []
     for contour in contours:
@@ -35,7 +35,7 @@ def detect_shapes(frame):
         cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
 
         # Filtrar formas lejanas del centro
-        distance = ((cx - frame_center[0]) ** 2 + (cy - frame_center[1]) ** 2) ** 0.5
+        distance = ((cx - frame_center[0])**2 + (cy - frame_center[1])**2)**0.5
         if distance > max_distance:
             continue
 
@@ -49,10 +49,9 @@ def detect_shapes(frame):
             (x, y, w, h) = cv2.boundingRect(approx)
             if 0.9 <= w / float(h) <= 1.1:
                 shapes.append(("square", contour, (255, 0, 0)))  # Azul
-        elif len(approx) >= 50:
+        elif len(approx) >= 8:
             shapes.append(("circle", contour, (0, 0, 255)))  # Rojo
     return shapes
-
 
 def update_sequence(shapes):
     """Actualizar la secuencia detectada y verificar si es correcta."""
@@ -75,10 +74,8 @@ def update_sequence(shapes):
     return f"Shapes detected: {len(detected_sequence)}/4"
 
 
-def stream_video():
-    """Captura de video en tiempo real con Picamera2."""
-    global checking_sequence, detected_sequence
-
+if __name__ == "__main__":
+    
     # Configurar Picamera2
     picam = Picamera2()
     picam.preview_configuration.main.size = (1280, 720)
@@ -106,11 +103,11 @@ def stream_video():
             # Comprobar la secuencia detectada
             if detected_sequence == expected_sequence:
                 cv2.putText(frame, "Sequence Correct!", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                print("Sequence Correct!")
+                print("Correct sequence. Sequence Correct!")
                 break
             else:
                 cv2.putText(frame, "Access Denied! Try Again", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                print("Access Denied!")
+                print("Wrong sequence. Access Denied!")
             detected_sequence.clear()
             checking_sequence = False  # Resetear la comprobación
         else:
@@ -126,8 +123,5 @@ def stream_video():
         if key == ord('q'):  # Salir con 'q'
             break
 
+    picam.stop()
     cv2.destroyAllWindows()
-
-
-if __name__ == "__main__":
-    stream_video()
