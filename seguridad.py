@@ -88,7 +88,7 @@ if __name__ == "__main__":
     frame_width = 1280  # Resolución de la cámara
     frame_height = 720
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codificador de video
-    out = cv2.VideoWriter('video_prueba_seguridad.mp4', fourcc, 20.0, (frame_width, frame_height))  # Video output
+    out = cv2.VideoWriter('video_prueba_seguridad_raspi.mp4', fourcc, 20.0, (frame_width, frame_height))  # Video output
 
     print("Detecting shapes in real-time. Press 'q' to quit.")
 

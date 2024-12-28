@@ -84,6 +84,12 @@ if __name__ == "__main__":
     picam.configure("preview")
     picam.start()
 
+    # Configuración para grabar el video
+    frame_width = 1280  # Resolución de la cámara
+    frame_height = 720
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codificador de video
+    out = cv2.VideoWriter('video_prueba_seguimiento_raspi.mp4', fourcc, 20.0, (frame_width, frame_height))  # Video output
+
     print("Detecting shapes in real-time. Press 'q' to quit.")
 
     while True:
@@ -115,6 +121,9 @@ if __name__ == "__main__":
             result = update_sequence(shapes)
             cv2.putText(frame, result, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
 
+        # Guardar el frame en el archivo de video
+        out.write(frame)
+
         # Mostrar el video en tiempo real
         cv2.imshow("Shape Detection", frame)
 
@@ -124,4 +133,5 @@ if __name__ == "__main__":
             break
 
     picam.stop()
+    out.release()
     cv2.destroyAllWindows()
